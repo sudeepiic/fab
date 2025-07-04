@@ -7,9 +7,16 @@
 
 html,
 body {
-  @apply bg-white dark:bg-gray-950;
+font-family: "GilroyMedium";
+overflow: hidden;
+overflow-x: hidden;
+width: 100vw;
+height: 100dvh;
+height: 100vh;
+background: #2d1b0e;
+}
 
-  @media (prefers-color-scheme: dark) {
-    color-scheme: dark;
-  }
+@font-face {
+  font-family: "GilroyMedium";
+  src: url("/assets/font/GILROY-MEDIUM.TTF") format("opentype");
 }
