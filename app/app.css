@@ -20,3 +20,24 @@ background: #2d1b0e;
   font-family: "GilroyMedium";
   src: url("/assets/font/GILROY-MEDIUM.TTF") format("opentype");
 }
+
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #2d1b0e;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #d4af37;
+  border-radius: 10px;
+  border: 2px solid #2d1b0e;
+}
+
+/* Firefox */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #d4af37 #2d1b0e;
+}

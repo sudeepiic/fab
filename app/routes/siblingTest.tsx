@@ -1,5 +1,5 @@
 import type { Route } from "./+types/home";
-import StartJourney from "~/components/startJourney/startJourney";
+import { SiblingEquationTest } from "~/components/siblingEquationTest/siblingEquation";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -9,5 +9,5 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export default function Home() {
-  return <StartJourney />;
+  return <SiblingEquationTest />;
 }
