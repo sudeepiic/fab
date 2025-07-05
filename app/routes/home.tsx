@@ -3,8 +3,8 @@ import StartJourney from "~/components/startJourney/startJourney";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "New React Router App" },
-    { name: "description", content: "Welcome to React Router!" },
+    { title: "Fabelle" },
+    { name: "description", content: "Welcome to Fabelle!" },
   ];
 }
 

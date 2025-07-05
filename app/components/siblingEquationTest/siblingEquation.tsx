@@ -166,7 +166,7 @@ export function SiblingEquationTest() {
         answer: textAnswers[q.id],
       }));
 
-    const payload = { mcqs, inputs };
+    const payload = { mcqs, inputs , chocolateType: selected };
     const token = localStorage.getItem("authToken");
 
     try {
@@ -202,49 +202,46 @@ export function SiblingEquationTest() {
     }
   };
 
-const handleTryAgain = async () => {
-  if (!orderId || attemptsLeft <= 0) return;
+  const handleTryAgain = async () => {
+    if (!orderId || attemptsLeft <= 0) return;
 
-  try {
-    setIsRetrying(true);
-    const token = localStorage.getItem("authToken");
+    try {
+      setIsRetrying(true);
+      const token = localStorage.getItem("authToken");
 
-    const response = await fetch(
-      "https://reg-backend-staging.fabelle-hamper.vtour.tech/chocolate-box/try-again",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ orderId }),
+      const response = await fetch(
+        "https://reg-backend-staging.fabelle-hamper.vtour.tech/chocolate-box/try-again",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ orderId }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setShowFront(true);
+        setTempData(data.data);
+        setAttemptsLeft((prev) => prev - 1);
+
+        setTimeout(() => {
+          setDecodedData(data.data);
+          setShowFront(false);
+          setTempData(null);
+        }, 1000);
+      } else {
+        console.error("Try again failed:", data.message);
       }
-    );
-
-    const data = await response.json();
-
-    if (response.ok) {
-      setShowFront(true); 
-      setTempData(data.data); 
-      setAttemptsLeft((prev) => prev - 1);
-
-      
-      setTimeout(() => {
-        setDecodedData(data.data);
-        setShowFront(false); 
-        setTempData(null);   
-      }, 1000); 
-    } else {
-      console.error("Try again failed:", data.message);
+    } catch (error) {
+      console.error("Try again error:", error);
+    } finally {
+      setIsRetrying(false);
     }
-  } catch (error) {
-    console.error("Try again error:", error);
-  } finally {
-    setIsRetrying(false);
-  }
-};
-
-
+  };
 
   const handleSubmitDeliveryDetails = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -341,6 +338,42 @@ const handleTryAgain = async () => {
               )}
             </div>
           ))}
+           
+           <div>
+              <p className="mt-4 max-w-2xl  text-[#f3e9e0]/80 text-2xl">
+              <span className="text-[#d4af37] mr-2">9.</span> What kind of chocolate does she truly enjoy?
+            </p>
+            <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-4">
+              {options.map((opt, i) => (
+                <button
+                  key={i}
+                  onClick={() => setSelected(opt)}
+                  className={`p-5 bg-[#4a2c1a]/50 border-2 rounded-lg text-left transition-all duration-300 text-[#f3e9e0] text-base flex justify-between items-center ${
+                    selected === opt
+                      ? "border-[#d4af37] ring-2 ring-[#d4af37]/50 font-semibold"
+                      : "border-[#6e4a2f] hover:border-[#d4af37]/70 hover:bg-[#4a2c1a]"
+                  }`}
+                >
+                  <span>{opt}</span>
+                  {selected === opt && (
+                    <svg
+                      className="ml-3 w-5 h-5 text-[#d4af37]"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+            </div>
 
           <div className="mt-10 text-center">
             <button
@@ -358,7 +391,7 @@ const handleTryAgain = async () => {
       )}
 
       {isLoading && (
-        <div className="w-full max-w-4xl z-10 bg-[#2d1b0e]/40 backdrop-blur-md border border-[#6e4a2f]/30 rounded-2xl p-6 md:p-12 shadow-2xl shadow-black/40  absolute h-[20vh] flex items-center justify-center top-[40%] left-[50%] transform -translate-x-1/2 -translate-y-1/2">
+        <div className="w-full max-w-4xl z-10 bg-[#2d1b0e]/40 backdrop-blur-md border border-[#6e4a2f]/30 rounded-2xl p-6 md:p-12 shadow-2xl shadow-black/40  absolute h-[20vh] flex items-center justify-center top-[45%] left-[50%] transform -translate-x-1/2 -translate-y-1/2">
           <div className="text-[#d4af37] text-3xl text-center h-[20vh] flex items-center justify-center">
             {loadingTexts[currentTextIndex]}
           </div>
@@ -383,24 +416,24 @@ const handleTryAgain = async () => {
                 }`}
               >
                 {/* Front */}
-                 {showFront && (
-                <div className="absolute w-full h-full backface-hidden flex items-center justify-center bg-gradient-to-br from-[#4a2c1a] to-[#3a1f11] border-2 border-[#d4af37]/50 rounded-2xl p-6">
-                  <h2 className="text-3xl font-serif text-white">
-                    Revealing Your Archetype...
-                  </h2>
-                </div>
-                 )}
+                {showFront && (
+                  <div className="absolute w-full h-full backface-hidden flex items-center justify-center bg-gradient-to-br from-[#4a2c1a] to-[#3a1f11] border-2 border-[#d4af37]/50 rounded-2xl p-6">
+                    <h2 className="text-3xl font-serif text-white">
+                      Revealing Your Archetype...
+                    </h2>
+                  </div>
+                )}
 
                 {/* Back */}
                 {decodedData && !showFront && (
-                <div className="absolute w-full h-full backface-hidden rotate-y-180 flex items-center justify-center bg-gradient-to-br from-[#4a2c1a] to-[#3a1f11] border-2 border-[#d4af37]/50 rounded-2xl p-6 flex-col">
-                  <h2 className="text-5xl font-serif text-[#d4af37]">
-                    {decodedData.title}
-                  </h2>
-                  <p className="text-lg text-white mt-3">
-                    {decodedData.description}
-                  </p>
-                </div>
+                  <div className="absolute w-full h-full backface-hidden rotate-y-180 flex items-center justify-center bg-gradient-to-br from-[#4a2c1a] to-[#3a1f11] border-2 border-[#d4af37]/50 rounded-2xl p-6 flex-col">
+                    <h2 className="text-5xl font-serif text-[#d4af37]">
+                      {decodedData.title}
+                    </h2>
+                    <p className="text-lg text-white mt-3">
+                      {decodedData.description}
+                    </p>
+                  </div>
                 )}
               </div>
             </div>
@@ -452,6 +485,7 @@ const handleTryAgain = async () => {
         </div>
       )}
 
+      {/* Accordion */}
       {!isLoading &&
         decodedData &&
         showFlavours &&
@@ -500,14 +534,18 @@ const handleTryAgain = async () => {
                       </svg>
                     </span>
                   </button>
-                  {openIndex === i && (
-                    <div className="p-4 opacity-50 text-white">
-                      <p className="mb-3">{f.description}</p>
-                      <p className="text-sm text-[#f3e9e0]/60">
-                        <strong>Ingredients:</strong> {f.ingredients}
-                      </p>
-                    </div>
-                  )}
+                  <div
+                    className={`transition-all duration-500 ease-in-out overflow-hidden ${
+                      openIndex === i
+                        ? "max-h-60 opacity-100 p-4"
+                        : "max-h-0 opacity-0 p-0"
+                    } text-white`}
+                  >
+                    <p className="mb-3">{f.description}</p>
+                    <p className="text-sm text-[#f3e9e0]/60">
+                      <strong>Ingredients:</strong> {f.ingredients}
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -532,36 +570,7 @@ const handleTryAgain = async () => {
             <p className="mt-4 max-w-2xl mx-auto text-[#f3e9e0]/80 text-lg">
               What kind of chocolate does she truly enjoy?
             </p>
-            <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
-              {options.map((opt, i) => (
-                <button
-                  key={i}
-                  onClick={() => setSelected(opt)}
-                  className={`p-5 bg-[#4a2c1a]/50 border-2 rounded-lg text-left transition-all duration-300 text-[#f3e9e0] text-base flex justify-between items-center ${
-                    selected === opt
-                      ? "border-[#d4af37] ring-2 ring-[#d4af37]/50 font-semibold"
-                      : "border-[#6e4a2f] hover:border-[#d4af37]/70 hover:bg-[#4a2c1a]"
-                  }`}
-                >
-                  <span>{opt}</span>
-                  {selected === opt && (
-                    <svg
-                      className="ml-3 w-5 h-5 text-[#d4af37]"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  )}
-                </button>
-              ))}
-            </div>
+           
             <button
               onClick={() => setShowDeliveryAddressForm(true)}
               className="mt-12 bg-gradient-to-r from-[#b98a53] to-[#d4af37] text-[#2d1b0e] font-bold py-4 px-12 rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-[#d4af37]/20 text-lg"
