@@ -90,15 +90,20 @@ const loadingTexts = [
   "Crafting your result...",
 ];
 
-const options = ["Dark — rich, bold, no-nonsense", "Milk — smooth, familiar, comforting", "Mixed — depends on the day", "Not sure — she surprises me every time"];
-
+const options = [
+  "Dark — rich, bold, no-nonsense",
+  "Milk — smooth, familiar, comforting",
+  "Mixed — depends on the day",
+  "Not sure — she surprises me every time",
+];
 
 export function SiblingEquationTest() {
   const [mcqAnswers, setMcqAnswers] = useState<Record<number, string>>({});
   const [textAnswers, setTextAnswers] = useState<Record<number, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [currentTextIndex, setCurrentTextIndex] = useState(0);
-  const [isFlipped, setIsFlipped] = useState(false);
+  const [showFront, setShowFront] = useState(true);
+  const [tempData, setTempData] = useState<any>(null);
   const [decodedData, setDecodedData] = useState<any>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [attemptsLeft, setAttemptsLeft] = useState<number>(2);
@@ -109,33 +114,44 @@ export function SiblingEquationTest() {
   const [showDeliveryForm, setShowDeliveryForm] = useState(false);
   const [showDeliveryAddressForm, setShowDeliveryAddressForm] = useState(false);
   const [deliveryDetails, setDeliveryDetails] = useState({
-  name: "",
-  address: "",
-  pincode: "",
-  date: "",
-  phoneNo: "",
-});
+    name: "",
+    address: "",
+    pincode: "",
+    date: "",
+    phoneNo: "",
+  });
   const navigate = useNavigate();
-
 
   const flavours = decodedData?.chocolates || [];
 
+  //Loader text effect
   useEffect(() => {
     let interval: NodeJS.Timeout;
 
     if (isLoading) {
       interval = setInterval(() => {
         setCurrentTextIndex((prev) => (prev + 1) % loadingTexts.length);
-      }, 1500);
+      }, 500);
     }
 
     return () => clearInterval(interval);
   }, [isLoading]);
 
+  //Flip effect
+  useEffect(() => {
+    if (decodedData) {
+      setShowFront(true);
+      const timer = setTimeout(() => {
+        setShowFront(false);
+      }, 1000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [decodedData]);
+
   const handleDecodeClick = async () => {
     setIsLoading(true);
     setDecodedData(null);
-    // Prepare MCQs
     const mcqs = questions
       .filter((q) => q.type === "choice" && mcqAnswers[q.id])
       .map((q) => ({
@@ -143,7 +159,6 @@ export function SiblingEquationTest() {
         answer: mcqAnswers[q.id],
       }));
 
-    // Prepare inputs as objects
     const inputs = questions
       .filter((q) => q.type === "textarea" && textAnswers[q.id])
       .map((q) => ({
@@ -176,7 +191,7 @@ export function SiblingEquationTest() {
           setDecodedData(data.data);
           setOrderId(data.data.orderId);
           console.log("Decoded Data:", data.data);
-        }, 3000);
+        }, 2000);
       } else {
         console.error("API Error:", data);
         setIsLoading(false);
@@ -187,79 +202,90 @@ export function SiblingEquationTest() {
     }
   };
 
-  const handleTryAgain = async () => {
-    console.log("Attempting to retry...");
-    if (!orderId || attemptsLeft <= 0) return;
+const handleTryAgain = async () => {
+  if (!orderId || attemptsLeft <= 0) return;
+
+  try {
+    setIsRetrying(true);
+    const token = localStorage.getItem("authToken");
+
+    const response = await fetch(
+      "https://reg-backend-staging.fabelle-hamper.vtour.tech/chocolate-box/try-again",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ orderId }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (response.ok) {
+      setShowFront(true); 
+      setTempData(data.data); 
+      setAttemptsLeft((prev) => prev - 1);
+
+      
+      setTimeout(() => {
+        setDecodedData(data.data);
+        setShowFront(false); 
+        setTempData(null);   
+      }, 1000); 
+    } else {
+      console.error("Try again failed:", data.message);
+    }
+  } catch (error) {
+    console.error("Try again error:", error);
+  } finally {
+    setIsRetrying(false);
+  }
+};
+
+
+
+  const handleSubmitDeliveryDetails = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const payload = {
+      orderId: orderId,
+      name: deliveryDetails.name,
+      address: deliveryDetails.address,
+      pincode: deliveryDetails.pincode,
+      date: deliveryDetails.date,
+      phoneNo: deliveryDetails.phoneNo,
+      chocolateType: selected,
+    };
+
+    const token = localStorage.getItem("authToken");
 
     try {
-      setIsRetrying(true);
-      const token = localStorage.getItem("authToken");
-
       const response = await fetch(
-        "https://reg-backend-staging.fabelle-hamper.vtour.tech/chocolate-box/try-again",
+        "https://reg-backend-staging.fabelle-hamper.vtour.tech/chocolate-box/add-delivery-details",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ orderId }),
+          body: JSON.stringify(payload),
         }
       );
 
-      const data = await response.json();
+      const result = await response.json();
 
       if (response.ok) {
-        setDecodedData(data.data);
-        setAttemptsLeft((prev) => prev - 1);
+        console.log("Delivery details submitted successfully:", result);
+        navigate("/");
       } else {
-        console.error("Try again failed:", data.message);
+        console.error("Submission failed:", result);
       }
-    } catch (error) {
-      console.error("Try again error:", error);
-    } finally {
-      setIsRetrying(false);
+    } catch (err) {
+      console.error("Error submitting delivery details:", err);
     }
   };
-
-  const handleSubmitDeliveryDetails = async (e: React.FormEvent) => {
-  e.preventDefault();
-
-  const payload = {
-    orderId: orderId, 
-    name: deliveryDetails.name,
-    address: deliveryDetails.address,
-    pincode: deliveryDetails.pincode,
-    date: deliveryDetails.date,
-    phoneNo: deliveryDetails.phoneNo,
-    chocolateType: selected, 
-  };
-
-  const token = localStorage.getItem("authToken");
-
-  try {
-    const response = await fetch("https://reg-backend-staging.fabelle-hamper.vtour.tech/chocolate-box/add-delivery-details", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const result = await response.json();
-
-    if (response.ok) {
-      console.log("Delivery details submitted successfully:", result);
-      navigate("/")
-    } else {
-      console.error("Submission failed:", result);
-    }
-  } catch (err) {
-    console.error("Error submitting delivery details:", err);
-  }
-};
-
 
   return (
     <div className="h-[100vh] overflow-y-auto custom-scrollbar relative">
@@ -350,25 +376,36 @@ export function SiblingEquationTest() {
               to match.
             </p>
 
-            <div className="perspective-1000 my-12">
-              <div className="relative w-full max-w-md mx-auto h-64">
-                <div className="absolute w-full h-full  bg-gradient-to-br from-[#4a2c1a] to-[#3a1f11] border-2 border-[#d4af37]/50 rounded-2xl flex items-center justify-center p-6 flex-col">
-                  {/* <h2 className="text-3xl font-serif text-white">
-                  Revealing Your Archetype...
-                </h2> */}
+            <div className="relative w-full max-w-md mx-auto h-64 perspective-1000">
+              <div
+                className={`w-full h-full transition-transform duration-700 transform-style-preserve-3d my-5 ${
+                  showFront ? "rotate-y-0" : "rotate-y-180"
+                }`}
+              >
+                {/* Front */}
+                 {showFront && (
+                <div className="absolute w-full h-full backface-hidden flex items-center justify-center bg-gradient-to-br from-[#4a2c1a] to-[#3a1f11] border-2 border-[#d4af37]/50 rounded-2xl p-6">
+                  <h2 className="text-3xl font-serif text-white">
+                    Revealing Your Archetype...
+                  </h2>
+                </div>
+                 )}
+
+                {/* Back */}
+                {decodedData && !showFront && (
+                <div className="absolute w-full h-full backface-hidden rotate-y-180 flex items-center justify-center bg-gradient-to-br from-[#4a2c1a] to-[#3a1f11] border-2 border-[#d4af37]/50 rounded-2xl p-6 flex-col">
                   <h2 className="text-5xl font-serif text-[#d4af37]">
                     {decodedData.title}
                   </h2>
-                  {/* <span className="text-lg text-[#d4af37] font-bold mt-3">
-                  {decodedData.subtitle}   </span> */}
-                  <p className="text-lg text-white  mt-3">
+                  <p className="text-lg text-white mt-3">
                     {decodedData.description}
                   </p>
                 </div>
+                )}
               </div>
             </div>
 
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center mt-6">
               <button
                 onClick={handleTryAgain}
                 disabled={attemptsLeft === 0 || isRetrying}
@@ -415,129 +452,208 @@ export function SiblingEquationTest() {
         </div>
       )}
 
-     {!isLoading && decodedData && showFlavours && !showDeliveryForm && !showDeliveryAddressForm && (
-        <div className="text-center animate-fade-in w-full max-w-4xl mx-auto mt-[5%] bg-[#2d1b0e]/40 backdrop-blur-md border border-[#6e4a2f]/30 rounded-2xl p-6 md:p-12 shadow-2xl shadow-black/40">
-          <h1 className="text-4xl md:text-5xl font-serif text-[#d4af37]">
-            One Box. Five Flavours. Every Shade of Your Siblinghood.
-          </h1>
-          <p className="mt-4 max-w-3xl mx-auto text-[#f3e9e0]/80 text-lg">
-            Here’s your curated selection — handcrafted truffles that capture
-            every nuance of your bond: the silent support, the gentle roasts,
-            and the unexpected care.
-          </p>
+      {!isLoading &&
+        decodedData &&
+        showFlavours &&
+        !showDeliveryForm &&
+        !showDeliveryAddressForm && (
+          <div className="text-center animate-fade-in w-full max-w-4xl mx-auto mt-[5%] bg-[#2d1b0e]/40 backdrop-blur-md border border-[#6e4a2f]/30 rounded-2xl p-6 md:p-12 shadow-2xl shadow-black/40">
+            <h1 className="text-4xl md:text-5xl font-serif text-[#d4af37]">
+              One Box. Five Flavours. Every Shade of Your Siblinghood.
+            </h1>
+            <p className="mt-4 max-w-3xl mx-auto text-[#f3e9e0]/80 text-lg">
+              Here’s your curated selection — handcrafted truffles that capture
+              every nuance of your bond: the silent support, the gentle roasts,
+              and the unexpected care.
+            </p>
 
-          <div className="mt-12 max-w-2xl mx-auto text-left">
-            {(decodedData?.chocolates || []).map((f: any, i: number) => (
-              <div
-                key={i}
-                className="mb-4 border-b border-[#6e4a2f]/50 overflow-hidden"
-              >
-                <button
-                  onClick={() => setOpenIndex(openIndex === i ? null : i)}
-                  className="w-full flex justify-between items-center px-4 py-5 text-white font-semibold text-lg"
+            <div className="mt-12 max-w-2xl mx-auto text-left">
+              {(decodedData?.chocolates || []).map((f: any, i: number) => (
+                <div
+                  key={i}
+                  className="mb-4 border-b border-[#6e4a2f]/50 overflow-hidden"
                 >
-                  {f.name}
-                  <span
-                    className={`text-xl transition-transform duration-300 ease-in-out ${
-                      openIndex === i ? "rotate-45" : "rotate-0"
-                    }`}
+                  <button
+                    onClick={() => setOpenIndex(openIndex === i ? null : i)}
+                    className="w-full flex justify-between items-center px-4 py-5 text-white font-semibold text-lg"
                   >
+                    {f.name}
+                    <span
+                      className={`text-xl transition-transform duration-300 ease-in-out ${
+                        openIndex === i ? "rotate-45" : "rotate-0"
+                      }`}
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="20"
+                        height="20"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M12 4v16m8-8H4"
+                        />
+                      </svg>
+                    </span>
+                  </button>
+                  {openIndex === i && (
+                    <div className="p-4 opacity-50 text-white">
+                      <p className="mb-3">{f.description}</p>
+                      <p className="text-sm text-[#f3e9e0]/60">
+                        <strong>Ingredients:</strong> {f.ingredients}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setShowDeliveryForm(true)}
+              className="mt-12 bg-gradient-to-r from-[#b98a53] to-[#d4af37] text-[#2d1b0e] font-bold py-4 px-12 rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-[#d4af37]/20 text-lg"
+            >
+              Finalise Her Preference
+            </button>
+          </div>
+        )}
+
+      {!isLoading &&
+        decodedData &&
+        showDeliveryForm &&
+        !showDeliveryAddressForm && (
+          <div className="text-center animate-fade-in w-full max-w-4xl mx-auto mt-[5%] bg-[#2d1b0e]/40 backdrop-blur-md border border-[#6e4a2f]/30 rounded-2xl p-6 md:p-12 shadow-2xl shadow-black/40">
+            <h1 className="text-4xl md:text-5xl font-serif text-[#d4af37]">
+              Before We Pack It All In...
+            </h1>
+            <p className="mt-4 max-w-2xl mx-auto text-[#f3e9e0]/80 text-lg">
+              What kind of chocolate does she truly enjoy?
+            </p>
+            <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+              {options.map((opt, i) => (
+                <button
+                  key={i}
+                  onClick={() => setSelected(opt)}
+                  className={`p-5 bg-[#4a2c1a]/50 border-2 rounded-lg text-left transition-all duration-300 text-[#f3e9e0] text-base flex justify-between items-center ${
+                    selected === opt
+                      ? "border-[#d4af37] ring-2 ring-[#d4af37]/50 font-semibold"
+                      : "border-[#6e4a2f] hover:border-[#d4af37]/70 hover:bg-[#4a2c1a]"
+                  }`}
+                >
+                  <span>{opt}</span>
+                  {selected === opt && (
                     <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="20"
-                      height="20"
+                      className="ml-3 w-5 h-5 text-[#d4af37]"
                       fill="none"
-                      viewBox="0 0 24 24"
                       stroke="currentColor"
-                      strokeWidth={2}
+                      strokeWidth="2"
+                      viewBox="0 0 24 24"
                     >
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        d="M12 4v16m8-8H4"
+                        d="M5 13l4 4L19 7"
                       />
                     </svg>
-                  </span>
+                  )}
                 </button>
-                {openIndex === i && (
-                  <div className="p-4 opacity-50 text-white">
-                    <p className="mb-3">{f.description}</p>
-                    <p className="text-sm text-[#f3e9e0]/60">
-                      <strong>Ingredients:</strong> {f.ingredients}
-                    </p>
-                  </div>
-                )}
-              </div>
-            ))}
+              ))}
+            </div>
+            <button
+              onClick={() => setShowDeliveryAddressForm(true)}
+              className="mt-12 bg-gradient-to-r from-[#b98a53] to-[#d4af37] text-[#2d1b0e] font-bold py-4 px-12 rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-[#d4af37]/20 text-lg"
+            >
+              Proceed to Delivery
+            </button>
           </div>
-
-          <button
-           onClick={() => setShowDeliveryForm(true)}
-            className="mt-12 bg-gradient-to-r from-[#b98a53] to-[#d4af37] text-[#2d1b0e] font-bold py-4 px-12 rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-[#d4af37]/20 text-lg"
+        )}
+      {!isLoading && decodedData && showDeliveryAddressForm && (
+        <div className="animate-fade-in">
+          <div className="text-center mb-12">
+            <h1 className="text-4xl md:text-5xl font-serif text-[#d4af37]">
+              Your Words. Her Box. Delivered.
+            </h1>
+            <p className="mt-4 max-w-2xl mx-auto text-[#f3e9e0]/80 text-lg">
+              Add a delivery address, and we’ll wrap the story — in fine
+              chocolate, with finishing ribbons.
+            </p>
+          </div>
+          <form
+            className="max-w-2xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 "
+            onSubmit={handleSubmitDeliveryDetails}
           >
-            Finalise Her Preference
-          </button>
+            <input
+              type="text"
+              placeholder="Name"
+              className="md:col-span-2 bg-[#4a2c1a]/50 border border-[#6e4a2f] rounded-lg p-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#d4af37]"
+              value={deliveryDetails.name}
+              onChange={(e) =>
+                setDeliveryDetails({ ...deliveryDetails, name: e.target.value })
+              }
+            />
+            <input
+              type="text"
+              placeholder="Phone no."
+              className="md:col-span-2 bg-[#4a2c1a]/50 border border-[#6e4a2f] rounded-lg p-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#d4af37]"
+              value={deliveryDetails.phoneNo}
+              onChange={(e) =>
+                setDeliveryDetails({
+                  ...deliveryDetails,
+                  phoneNo: e.target.value,
+                })
+              }
+            />
+            <textarea
+              placeholder="Address"
+              rows={3}
+              className="md:col-span-2 bg-[#4a2c1a]/50 border border-[#6e4a2f] rounded-lg p-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#d4af37]"
+              value={deliveryDetails.address}
+              onChange={(e) =>
+                setDeliveryDetails({
+                  ...deliveryDetails,
+                  address: e.target.value,
+                })
+              }
+            ></textarea>
+            <input
+              type="text"
+              placeholder="Pincode"
+              className="bg-[#4a2c1a]/50 border border-[#6e4a2f] rounded-lg p-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#d4af37]"
+              value={deliveryDetails.pincode}
+              onChange={(e) =>
+                setDeliveryDetails({
+                  ...deliveryDetails,
+                  pincode: e.target.value,
+                })
+              }
+            />
+            <input
+              type="date"
+              placeholder="Preferred Delivery Date"
+              className="bg-[#4a2c1a]/50 border border-[#6e4a2f] rounded-lg p-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#d4af37]"
+              value={deliveryDetails.date}
+              onChange={(e) =>
+                setDeliveryDetails({ ...deliveryDetails, date: e.target.value })
+              }
+            />
+            <div className="text-center md:col-span-2">
+              <button
+                type="submit"
+                className="mt-6 bg-gradient-to-r from-[#b98a53] to-[#d4af37] text-[#2d1b0e] font-bold py-4 px-12 rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-[#d4af37]/20 text-lg"
+              >
+                Proceed to Payment
+              </button>
+              <p className="mt-4 text-xs text-[#f3e9e0]/50">
+                Delivery may take 2–5 days depending on your location. No
+                express shipping via sibling guilt.
+              </p>
+            </div>
+          </form>
         </div>
       )}
-
-{!isLoading && decodedData && showDeliveryForm && !showDeliveryAddressForm && (
-      <div className="text-center animate-fade-in w-full max-w-4xl mx-auto mt-[5%] bg-[#2d1b0e]/40 backdrop-blur-md border border-[#6e4a2f]/30 rounded-2xl p-6 md:p-12 shadow-2xl shadow-black/40">
-            <h1 className="text-4xl md:text-5xl font-serif text-[#d4af37]">Before We Pack It All In...</h1>
-            <p className="mt-4 max-w-2xl mx-auto text-[#f3e9e0]/80 text-lg">What kind of chocolate does she truly enjoy?</p>
-            <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
-                {options.map((opt, i) => (
-                   <button
-  key={i}
-  onClick={() => setSelected(opt)}
-  className={`p-5 bg-[#4a2c1a]/50 border-2 rounded-lg text-left transition-all duration-300 text-[#f3e9e0] text-base flex justify-between items-center ${
-    selected === opt
-      ? 'border-[#d4af37] ring-2 ring-[#d4af37]/50 font-semibold'
-      : 'border-[#6e4a2f] hover:border-[#d4af37]/70 hover:bg-[#4a2c1a]'
-  }`}
->
-  <span>{opt}</span>
-  {selected === opt && (
-    <svg
-      className="ml-3 w-5 h-5 text-[#d4af37]"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-    </svg>
-  )}
-</button>
-
-                ))}
-            </div>
-            <button onClick={() => setShowDeliveryAddressForm(true)} className="mt-12 bg-gradient-to-r from-[#b98a53] to-[#d4af37] text-[#2d1b0e] font-bold py-4 px-12 rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-[#d4af37]/20 text-lg">Proceed to Delivery</button>
-        </div>
-)}
-{!isLoading && decodedData && showDeliveryAddressForm && (
-           <div className="animate-fade-in">
-            <div className="text-center mb-12">
-                <h1 className="text-4xl md:text-5xl font-serif text-[#d4af37]">Your Words. Her Box. Delivered.</h1>
-                <p className="mt-4 max-w-2xl mx-auto text-[#f3e9e0]/80 text-lg">Add a delivery address, and we’ll wrap the story — in fine chocolate, with finishing ribbons.</p>
-            </div>
-            <form className="max-w-2xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 " onSubmit={handleSubmitDeliveryDetails}>
-                <input type="text" placeholder="Name" className="md:col-span-2 bg-[#4a2c1a]/50 border border-[#6e4a2f] rounded-lg p-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#d4af37]"  value={deliveryDetails.name}
-  onChange={(e) => setDeliveryDetails({ ...deliveryDetails, name: e.target.value })} />
-                <input type="text" placeholder="Phone no." className="md:col-span-2 bg-[#4a2c1a]/50 border border-[#6e4a2f] rounded-lg p-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#d4af37]"  value={deliveryDetails.phoneNo}
-  onChange={(e) => setDeliveryDetails({ ...deliveryDetails, phoneNo: e.target.value })} />
-                <textarea placeholder="Address" rows={3} className="md:col-span-2 bg-[#4a2c1a]/50 border border-[#6e4a2f] rounded-lg p-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#d4af37]"  value={deliveryDetails.address}
-  onChange={(e) => setDeliveryDetails({ ...deliveryDetails, address: e.target.value })} ></textarea>
-                <input type="text" placeholder="Pincode" className="bg-[#4a2c1a]/50 border border-[#6e4a2f] rounded-lg p-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#d4af37]"  value={deliveryDetails.pincode}
-  onChange={(e) => setDeliveryDetails({ ...deliveryDetails, pincode: e.target.value })} />
-                <input type="date" placeholder="Preferred Delivery Date" className="bg-[#4a2c1a]/50 border border-[#6e4a2f] rounded-lg p-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#d4af37]"  value={deliveryDetails.date}
-  onChange={(e) => setDeliveryDetails({ ...deliveryDetails, date: e.target.value })} />
-                <div className="text-center md:col-span-2">
-                    <button type="submit" className="mt-6 bg-gradient-to-r from-[#b98a53] to-[#d4af37] text-[#2d1b0e] font-bold py-4 px-12 rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-[#d4af37]/20 text-lg">Proceed to Payment</button>
-                    <p className="mt-4 text-xs text-[#f3e9e0]/50">Delivery may take 2–5 days depending on your location. No express shipping via sibling guilt.</p>
-                </div>
-            </form>
-        </div>
-)}
     </div>
   );
 }
