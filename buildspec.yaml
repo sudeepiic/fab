@@ -6,7 +6,7 @@ phases:
       - npm install --legacy-peer-deps
   build:
     commands:
-      - npm run build $CONFIGURATION
+      - npm run build
 
 artifacts:
   files:
